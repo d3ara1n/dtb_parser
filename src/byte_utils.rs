@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use num_traits::FromPrimitive;
 
 use crate::structure::StructureToken;

@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::byte_utils::{align_block, align_size, BLOCK_SIZE, locate_block, read_aligned_be_number, read_aligned_be_u32, read_aligned_sized_strings, read_name};
 use crate::error::{DeviceTreeError, Result};
 use crate::error::DeviceTreeError::ParsingFailed;

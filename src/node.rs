@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::byte_utils::{align_size, locate_block, read_aligned_name, read_aligned_token};
 use crate::error::DeviceTreeError;
 use crate::error::Result;

@@ -1,3 +1,7 @@
+#![no_std]
+
+extern crate alloc;
+
 mod byte_utils;
 
 pub mod device_tree;
