@@ -1,0 +1,23 @@
+[package]
+name = "dtb_parser"
+version = "0.1.0"
+authors = ["Chien Zhang(zqy0224@live.com)"]
+edition = "2021"
+description = "no std but alloc depended device tree blob parsing lib"
+license = "MIT"
+repository = "https://github.com/d3ara1n/dtb_parser"
+readme = "README.md"
+categories = ["embedded", "no-std", "os"]
+keywords = ["device", "tree", "dtb"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+num-traits = { version = "0.2", default-features = false }
+num-derive = { version = "0.3", default-features = false }
+
+[features]
+default = []
+std = []
+alloc = []
+doctest = []
