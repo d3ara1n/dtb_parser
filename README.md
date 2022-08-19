@@ -4,8 +4,7 @@
 pub const BLOB: &[u8] = include_bytes!("device.dtb");
 
 fn main() {
-    // no std but alloc depended device tree blob parsing lib
-    let tree = DeviceTree::from_bytes(BLOB).unwrap();
+        let tree = DeviceTree::from_bytes(BLOB).unwrap();
     print_node(tree.root(), 0);
 }
 
