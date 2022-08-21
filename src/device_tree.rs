@@ -1,6 +1,12 @@
+use alloc::collections::VecDeque;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::fmt::{Display, Formatter};
+
 use crate::error::{DeviceTreeError, Result};
 use crate::header::DeviceTreeHeader;
 use crate::node::DeviceTreeNode;
+use crate::traits::{HasNamedChildNode};
 
 pub struct DeviceTree<'a> {
     header: DeviceTreeHeader,
@@ -23,8 +29,8 @@ impl<'a> DeviceTree<'a> {
             data,
             &header,
             header.off_dt_struct as usize,
-            2,
-            2,
+            InheritedValues::new(),
+            InheritedValues::new(),
         ) {
             Ok(it) => it,
             Err(err) => return Err(err),
@@ -75,5 +81,75 @@ impl<'a> DeviceTree<'a> {
 
     pub fn root(&self) -> &DeviceTreeNode {
         &self.root
+    }
+}
+
+pub struct DeviceTreeNodeIter<'a> {
+    queue: VecDeque<&'a DeviceTreeNode<'a>>,
+}
+
+impl<'a> Iterator for DeviceTreeNodeIter<'a> {
+    type Item = &'a DeviceTreeNode<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let res = self.queue.pop_front();
+        match res {
+            Some(node) if node.has_children() => {
+                for i in node.nodes() {
+                    self.queue.push_back(i);
+                }
+            }
+            _ => {}
+        }
+        res
+    }
+}
+
+impl<'a> Display for DeviceTree<'a>{
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        writeln!(f, "{}", self.root)
+    }
+}
+
+impl<'a> IntoIterator for &'a DeviceTree<'a> {
+    type Item = &'a DeviceTreeNode<'a>;
+    type IntoIter = DeviceTreeNodeIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DeviceTreeNodeIter {
+            queue: VecDeque::from([self.root()])
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct InheritedValues<'a>(Vec<(&'a str, u64)>);
+
+impl<'a> InheritedValues<'a> {
+    pub const fn new() -> InheritedValues<'a>{
+        InheritedValues(vec![])
+    }
+
+    pub fn find(&self, name: &str) -> Option<u64> {
+        for i in &self.0 {
+            if i.0 == name {
+                return Some(i.1);
+            }
+        }
+        None
+    }
+
+    pub fn update(&mut self, name: &'a str, value: u64) {
+        let mut dirty = false;
+        for i in 0..self.0.len() {
+            if self.0[i].0 == name {
+                self.0[i].1 = value;
+                dirty = true;
+                break;
+            }
+        }
+        if !dirty{
+            self.0.push((name, value));
+        }
     }
 }

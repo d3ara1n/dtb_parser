@@ -10,3 +10,4 @@ pub mod header;
 pub mod structure;
 pub mod prop;
 pub mod node;
+pub mod traits;
