@@ -2,15 +2,16 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::{Display, Formatter, Write};
 
-use crate::byte_utils::{align_size, locate_block, read_aligned_name, read_aligned_token};
+use crate::byte_utils::{align_size, locate_block, read_aligned_be_u32, read_aligned_name};
 use crate::device_tree::InheritedValues;
 use crate::error::DeviceTreeError;
 use crate::error::Result;
 use crate::header::DeviceTreeHeader;
 use crate::prop::{NodeProperty, PropertyValue};
-use crate::structure::StructureToken;
 use crate::traits::{HasNamedChildNode, HasNamedProperty};
 
+/// Node of `DeviceTree`
+/// Contains owned children and properties
 pub struct DeviceTreeNode<'a> {
     pub(crate) block_count: usize,
     name: &'a str,
@@ -21,8 +22,8 @@ pub struct DeviceTreeNode<'a> {
 impl<'a> DeviceTreeNode<'a> {
     pub(crate) fn from_bytes(data: &'a [u8], header: &DeviceTreeHeader, start: usize, inherited: InheritedValues<'a>, mut owned: InheritedValues<'a>) -> Result<Self> {
         let block_start = align_size(start);
-        if let Some(begin_node) = read_aligned_token(data, block_start) {
-            if begin_node == StructureToken::BeginNode {
+        if let Some(begin_node) = read_aligned_be_u32(data, block_start) {
+            if begin_node == 0x1 {
                 if let Some(name) = read_aligned_name(data, block_start + 1) {
                     let mut props = Vec::<NodeProperty>::new();
                     let mut nodes = Vec::<DeviceTreeNode>::new();
@@ -36,14 +37,14 @@ impl<'a> DeviceTreeNode<'a> {
 
                     let mut current_block = block_start + name_blocks + 1;
 
-                    while let Some(token) = read_aligned_token(data, current_block) {
+                    while let Some(token) = read_aligned_be_u32(data, current_block) {
                         match token {
-                            StructureToken::Property => {
+                            0x3 => {
                                 if let Ok(prop) = NodeProperty::from_bytes(data, header, locate_block(current_block), &inherited, &owned) {
                                     current_block += prop.block_count;
-                                    if nodes.is_empty(){
+                                    if nodes.is_empty() {
                                         // it's inheritable value
-                                        if let PropertyValue::Integer(v) = prop.value(){
+                                        if let PropertyValue::Integer(v) = prop.value() {
                                             owned.update(prop.name(), *v);
                                         }
                                     }
@@ -52,7 +53,7 @@ impl<'a> DeviceTreeNode<'a> {
                                     return Err(DeviceTreeError::ParsingFailed);
                                 }
                             }
-                            StructureToken::BeginNode => {
+                            0x1 => {
                                 if let Ok(node) = DeviceTreeNode::from_bytes(data, header, locate_block(current_block), owned.clone(), owned.clone()) {
                                     current_block += node.block_count;
                                     nodes.push(node);
@@ -60,11 +61,11 @@ impl<'a> DeviceTreeNode<'a> {
                                     return Err(DeviceTreeError::ParsingFailed);
                                 }
                             }
-                            StructureToken::Nop => current_block += 1,
-                            StructureToken::EndNode | StructureToken::End => {
+                            0x2 | 0x9 => {
                                 current_block += 1;
                                 break;
                             }
+                            _ => current_block += 1,
                         };
                     }
                     Ok(Self {
@@ -84,45 +85,48 @@ impl<'a> DeviceTreeNode<'a> {
         }
     }
 
+    /// Get the name of this node
     pub fn name(&self) -> &'a str {
         self.name
     }
 
+    /// Get a reference of its owned properties
     pub fn props(&self) -> &[NodeProperty<'a>] {
         &self.props
     }
 
+    /// Get a reference of its owned children
     pub fn nodes(&self) -> &[DeviceTreeNode<'a>] {
         &self.nodes
     }
 }
 
-impl<'a> Display for DeviceTreeNode<'a>{
+impl<'a> Display for DeviceTreeNode<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        if let Err(err) = writeln!(f, "{} {{", self.name){
-            return Err(err)
+        if let Err(err) = writeln!(f, "{} {{", self.name) {
+            return Err(err);
         }
-        for i in &self.props{
-            if let Err(err) = writeln!(f, "\t{}", i){
+        for i in &self.props {
+            if let Err(err) = writeln!(f, "\t{}", i) {
                 return Err(err);
             }
         }
-        for i in &self.nodes{
+        for i in &self.nodes {
             let mut buffer = String::new();
-            if let Err(err) = write!(buffer, "\t{}", i){
-                return Err(err)
+            if let Err(err) = write!(buffer, "\t{}", i) {
+                return Err(err);
             }
             let mut first_line = true;
-            for j in buffer.split('\n'){
-                if !first_line{
-                    if let Err(err) = write!(f, "\t"){
-                        return Err(err)
+            for j in buffer.split('\n') {
+                if !first_line {
+                    if let Err(err) = write!(f, "\t") {
+                        return Err(err);
                     }
-                }else{
+                } else {
                     first_line = false;
                 }
-                if let Err(err) = writeln!(f, "{}", j){
-                    return Err(err)
+                if let Err(err) = writeln!(f, "{}", j) {
+                    return Err(err);
                 }
             }
         }

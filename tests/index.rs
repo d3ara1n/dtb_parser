@@ -4,7 +4,7 @@ use dtb_parser::traits::{HasNamedChildNode, HasNamedProperty};
 const DTB: &[u8] = include_bytes!("device.dtb");
 
 #[test]
-fn node_name(){
+fn node_name() {
     let tree = DeviceTree::from_bytes(DTB).unwrap();
     assert_eq!(tree.root().name(), "");
     assert!(!matches!(tree.root().find_child("cpus"), None));
@@ -13,7 +13,7 @@ fn node_name(){
 }
 
 #[test]
-fn prop_name(){
+fn prop_name() {
     let tree = DeviceTree::from_bytes(DTB).unwrap();
     assert!(!matches!(tree.root().find_prop("model"), None));
     assert!(!matches!(tree.root().find_prop("#address-cells"), None));

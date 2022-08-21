@@ -9,20 +9,31 @@ use crate::error::DeviceTreeError::{NotEnoughLength, ParsingFailed};
 use crate::error::Result;
 use crate::header::DeviceTreeHeader;
 
+/// Presenting a variety of values that a `NodeProperty` can hold
 #[derive(Debug)]
 pub enum PropertyValue<'a> {
+    /// Empty value
     None,
+    /// Single integer
     Integer(u64),
+    /// A list of integers
     Integers(Vec<u64>),
     // u64 when interrupt-cells = 2
+    /// A pointer referenced by `<specifier>-parent`
     PHandle(u32),
+    /// Single string
     String(&'a str),
+    /// A list of strings
     Strings(Vec<&'a str>),
     // address, size, size with 0 no size
+    /// An address with it's length(size)
     Address(u64, u64),
+    /// A list of addresses
     Addresses(Vec<(u64, u64)>),
     // child-bus-address, parent-bus-address, length
+    /// A arbitrary number of addresses
     Ranges(Vec<(u64, u64, u64)>),
+    /// Out of these varieties and cannot be parsed
     Unknown,
 }
 
@@ -43,6 +54,7 @@ impl<'a> Display for PropertyValue<'a> {
     }
 }
 
+/// A property of `DeviceTreeNode`
 pub struct NodeProperty<'a> {
     pub(crate) block_count: usize,
     name: &'a str,
@@ -207,11 +219,12 @@ impl<'a> NodeProperty<'a> {
         }
     }
 
+    /// Get its name
     pub fn name(&self) -> &'a str {
         self.name
     }
 
-    // client does not need check if it created
+    /// Get its value
     pub fn value(&self) -> &PropertyValue {
         &self.value
     }

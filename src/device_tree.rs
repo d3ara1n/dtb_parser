@@ -6,14 +6,19 @@ use core::fmt::{Display, Formatter};
 use crate::error::{DeviceTreeError, Result};
 use crate::header::DeviceTreeHeader;
 use crate::node::DeviceTreeNode;
-use crate::traits::{HasNamedChildNode};
+use crate::traits::HasNamedChildNode;
 
+/// The tree structure
+/// Reads data from a slice of bytes and parses into `DeviceTree`
+/// Indexed by nodes and properties' names or by path for the whole tree
 pub struct DeviceTree<'a> {
     header: DeviceTreeHeader,
     root: DeviceTreeNode<'a>,
 }
 
 impl<'a> DeviceTree<'a> {
+    /// Parses a slice of bytes and constructs `DeviceTree`
+    /// The structure should live as long as the `data`
     pub fn from_bytes(data: &'a [u8]) -> Result<Self> {
         let magic = &data[0..4];
         if magic != [0xd0, 0x0d, 0xfe, 0xed] {
@@ -39,51 +44,63 @@ impl<'a> DeviceTree<'a> {
         Ok(Self { header, root })
     }
 
+    /// Its magic number extracted from the header
     pub fn magic(&self) -> usize {
         self.header.magic as usize
     }
 
+    /// Its total size extracted from the header
     pub fn total_size(&self) -> usize {
         self.header.total_size as usize
     }
 
+    /// Its offset of the struct region extracted from the header
     pub fn off_dt_struct(&self) -> usize {
         self.header.off_dt_struct as usize
     }
 
+    /// Its offset of the strings region extracted from the header
     pub fn off_dt_strings(&self) -> usize {
         self.header.off_dt_strings as usize
     }
 
+    /// Its offset of the reserved memory region extracted from the header
     pub fn off_mem_reserved(&self) -> usize {
         self.header.off_mem_reserved as usize
     }
 
+    /// Its version extracted from the header
     pub fn version(&self) -> usize {
         self.header.version as usize
     }
 
+    /// Its last compatible version extracted from the header
     pub fn last_comp_version(&self) -> usize {
         self.header.last_comp_version as usize
     }
 
+    /// Its boot cpu id extracted from the header
     pub fn boot_cpu_id(&self) -> usize {
         self.header.boot_cpu_id as usize
     }
 
+    /// Its size of the strings region extracted from the header
     pub fn size_dt_strings(&self) -> usize {
         self.header.size_dt_strings as usize
     }
 
+    /// Its size of the struct region extracted from the header
     pub fn size_dt_struct(&self) -> usize {
         self.header.size_dt_struct as usize
     }
 
+    /// Get a reference of the root node
     pub fn root(&self) -> &DeviceTreeNode {
         &self.root
     }
 }
 
+/// Iterator for all the tree nodes
 pub struct DeviceTreeNodeIter<'a> {
     queue: VecDeque<&'a DeviceTreeNode<'a>>,
 }
@@ -105,7 +122,7 @@ impl<'a> Iterator for DeviceTreeNodeIter<'a> {
     }
 }
 
-impl<'a> Display for DeviceTree<'a>{
+impl<'a> Display for DeviceTree<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "{}", self.root)
     }
@@ -126,7 +143,7 @@ impl<'a> IntoIterator for &'a DeviceTree<'a> {
 pub(crate) struct InheritedValues<'a>(Vec<(&'a str, u64)>);
 
 impl<'a> InheritedValues<'a> {
-    pub const fn new() -> InheritedValues<'a>{
+    pub const fn new() -> InheritedValues<'a> {
         InheritedValues(vec![])
     }
 
@@ -148,7 +165,7 @@ impl<'a> InheritedValues<'a> {
                 break;
             }
         }
-        if !dirty{
+        if !dirty {
             self.0.push((name, value));
         }
     }

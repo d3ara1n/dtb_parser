@@ -1,9 +1,5 @@
 use alloc::vec::Vec;
 
-use num_traits::FromPrimitive;
-
-use crate::structure::StructureToken;
-
 pub(crate) const BLOCK_SIZE: usize = 4;
 
 pub(crate) fn align_block(index: usize) -> usize {
@@ -46,15 +42,6 @@ pub(crate) fn read_aligned_be_number(data: &[u8], index: usize, block_size: usiz
             Some(num)
         }
         _ => None
-    }
-}
-
-
-pub(crate) fn read_aligned_token(data: &[u8], index: usize) -> Option<StructureToken> {
-    if let Some(num) = read_aligned_be_u32(data, index) {
-        StructureToken::from_u32(num)
-    } else {
-        None
     }
 }
 
