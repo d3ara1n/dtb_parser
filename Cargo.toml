@@ -1,6 +1,6 @@
 [package]
 name = "dtb_parser"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Chien Zhang(zqy0224@live.com)"]
 edition = "2021"
 description = "no std but alloc depended device tree blob parsing lib"

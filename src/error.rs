@@ -12,4 +12,6 @@ pub enum DeviceTreeError {
     InvalidToken,
     /// Read bytes failed
     ParsingFailed,
+    /// Memory cannot be accessed
+    MemoryAccessFailed,
 }

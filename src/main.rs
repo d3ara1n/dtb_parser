@@ -1,7 +1,8 @@
 use dtb_parser::device_tree::DeviceTree;
 
-fn main() {
-    let tree = DeviceTree::from_bytes(include_bytes!("../tests/device.dtb")).unwrap();
+static DTB:&[u8] = include_bytes!("../tests/device.dtb");
 
+fn main() {
+    let tree = DeviceTree::from_address(DTB.as_ptr() as usize).unwrap();
     println!("{}", tree);
 }

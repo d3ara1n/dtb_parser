@@ -25,23 +25,29 @@ impl<'a> DeviceTree<'a> {
             return Err(DeviceTreeError::InvalidMagicNumber);
         }
 
-        let header = match DeviceTreeHeader::from_bytes(data) {
-            Ok(it) => it,
-            Err(err) => return Err(err),
-        };
+        let header =  DeviceTreeHeader::from_bytes(data)?;
 
-        let root = match DeviceTreeNode::from_bytes(
+        let root = DeviceTreeNode::from_bytes(
             data,
             &header,
             header.off_dt_struct as usize,
             InheritedValues::new(),
             InheritedValues::new(),
-        ) {
-            Ok(it) => it,
-            Err(err) => return Err(err),
-        };
+        )?;
 
         Ok(Self { header, root })
+    }
+
+    /// Parses from address where a device tree blob is located at
+    pub fn from_address(addr: usize) -> Result<Self> {
+        let header_bytes = unsafe { core::slice::from_raw_parts(addr as *const u8, 40) };
+        let magic = &header_bytes[0..4];
+        if magic != [0xd0, 0x0d, 0xfe, 0xed] {
+            return Err(DeviceTreeError::InvalidMagicNumber);
+        }
+        let header = DeviceTreeHeader::from_bytes(header_bytes)?;
+        let data = unsafe { core::slice::from_raw_parts(addr as *const u8, header.total_size as usize) };
+        Self::from_bytes(data)
     }
 
     /// Its magic number extracted from the header

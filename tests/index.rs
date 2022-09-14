@@ -20,6 +20,6 @@ fn prop_name() {
     assert!(matches!(tree.root().find_prop("#interrupt-cells"), None));
 
     let soc = tree.root().find_child("soc");
-    // assert!(!matches!(soc, None));
-    // assert!(matches!(soc.unwrap().find_child("gpio-controller1"), None));
+    assert!(!matches!(soc, None));
+    assert!(matches!(soc.unwrap().find_child("soc_gpio1"), None));
 }

@@ -38,10 +38,12 @@ pub(crate) fn read_aligned_be_number(data: &[u8], index: usize, block_size: usiz
         1 => read_aligned_be_u32(data, index).map(|res| res as u64),
         2 => {
             let bytes = &data[locate_block(index)..locate_block(index + block_size)];
-            let num = u64::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]]);
+            let num = u64::from_be_bytes([
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            ]);
             Some(num)
         }
-        _ => None
+        _ => None,
     }
 }
 
@@ -56,7 +58,7 @@ pub(crate) fn read_name(data: &[u8], offset: usize) -> Option<&str> {
         }
         match core::str::from_utf8(&data[first..end]) {
             Ok(s) => Some(s),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -65,7 +67,11 @@ pub(crate) fn read_aligned_name(data: &[u8], index: usize) -> Option<&str> {
     read_name(data, locate_block(index))
 }
 
-pub(crate) fn read_aligned_sized_strings(data: &[u8], index: usize, size: usize) -> Option<Vec<&str>> {
+pub(crate) fn read_aligned_sized_strings(
+    data: &[u8],
+    index: usize,
+    size: usize,
+) -> Option<Vec<&str>> {
     let first = locate_block(index);
     if first + size > data.len() {
         None
