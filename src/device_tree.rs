@@ -9,7 +9,7 @@ use crate::node::DeviceTreeNode;
 use crate::traits::HasNamedChildNode;
 
 /// The tree structure
-/// Reads data from a slice of bytes and parses into `DeviceTree`
+/// Reads data from a slice of bytes and parses into [DeviceTree]
 /// Indexed by nodes and properties' names or by path for the whole tree
 pub struct DeviceTree<'a> {
     header: DeviceTreeHeader,
@@ -17,7 +17,7 @@ pub struct DeviceTree<'a> {
 }
 
 impl<'a> DeviceTree<'a> {
-    /// Parses a slice of bytes and constructs `DeviceTree`
+    /// Parses a slice of bytes and constructs [DeviceTree]
     /// The structure should live as long as the `data`
     pub fn from_bytes(data: &'a [u8]) -> Result<Self> {
         let magic = &data[0..4];
@@ -25,7 +25,7 @@ impl<'a> DeviceTree<'a> {
             return Err(DeviceTreeError::InvalidMagicNumber);
         }
 
-        let header =  DeviceTreeHeader::from_bytes(data)?;
+        let header = DeviceTreeHeader::from_bytes(data)?;
 
         let root = DeviceTreeNode::from_bytes(
             data,
@@ -46,7 +46,8 @@ impl<'a> DeviceTree<'a> {
             return Err(DeviceTreeError::InvalidMagicNumber);
         }
         let header = DeviceTreeHeader::from_bytes(header_bytes)?;
-        let data = unsafe { core::slice::from_raw_parts(addr as *const u8, header.total_size as usize) };
+        let data =
+            unsafe { core::slice::from_raw_parts(addr as *const u8, header.total_size as usize) };
         Self::from_bytes(data)
     }
 
@@ -140,7 +141,7 @@ impl<'a> IntoIterator for &'a DeviceTree<'a> {
 
     fn into_iter(self) -> Self::IntoIter {
         DeviceTreeNodeIter {
-            queue: VecDeque::from([self.root()])
+            queue: VecDeque::from([self.root()]),
         }
     }
 }

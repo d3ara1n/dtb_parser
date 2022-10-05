@@ -1,7 +1,7 @@
-/// Result for `DeviceTree` parsing
+/// Result for [crate::device_tree::DeviceTree] parsing
 pub type Result<T> = core::result::Result<T, DeviceTreeError>;
 
-/// Errors for `DeviceTree` parsing
+/// Errors for [crate::device_tree::DeviceTree] parsing
 #[derive(Debug, Copy, Clone)]
 pub enum DeviceTreeError {
     /// Wrong magic number

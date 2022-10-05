@@ -10,7 +10,7 @@ use crate::header::DeviceTreeHeader;
 use crate::prop::{NodeProperty, PropertyValue};
 use crate::traits::{HasNamedChildNode, HasNamedProperty};
 
-/// Node of `DeviceTree`
+/// Node of [crate::device_tree::DeviceTree]
 /// Contains owned children and properties
 pub struct DeviceTreeNode<'a> {
     pub(crate) block_count: usize,
@@ -20,7 +20,13 @@ pub struct DeviceTreeNode<'a> {
 }
 
 impl<'a> DeviceTreeNode<'a> {
-    pub(crate) fn from_bytes(data: &'a [u8], header: &DeviceTreeHeader, start: usize, inherited: InheritedValues<'a>, mut owned: InheritedValues<'a>) -> Result<Self> {
+    pub(crate) fn from_bytes(
+        data: &'a [u8],
+        header: &DeviceTreeHeader,
+        start: usize,
+        inherited: InheritedValues<'a>,
+        mut owned: InheritedValues<'a>,
+    ) -> Result<Self> {
         let block_start = align_size(start);
         if let Some(begin_node) = read_aligned_be_u32(data, block_start) {
             if begin_node == 0x1 {
@@ -40,7 +46,13 @@ impl<'a> DeviceTreeNode<'a> {
                     while let Some(token) = read_aligned_be_u32(data, current_block) {
                         match token {
                             0x3 => {
-                                if let Ok(prop) = NodeProperty::from_bytes(data, header, locate_block(current_block), &inherited, &owned) {
+                                if let Ok(prop) = NodeProperty::from_bytes(
+                                    data,
+                                    header,
+                                    locate_block(current_block),
+                                    &inherited,
+                                    &owned,
+                                ) {
                                     current_block += prop.block_count;
                                     if nodes.is_empty() {
                                         // it's inheritable value
@@ -54,7 +66,13 @@ impl<'a> DeviceTreeNode<'a> {
                                 }
                             }
                             0x1 => {
-                                if let Ok(node) = DeviceTreeNode::from_bytes(data, header, locate_block(current_block), owned.clone(), owned.clone()) {
+                                if let Ok(node) = DeviceTreeNode::from_bytes(
+                                    data,
+                                    header,
+                                    locate_block(current_block),
+                                    owned.clone(),
+                                    owned.clone(),
+                                ) {
                                     current_block += node.block_count;
                                     nodes.push(node);
                                 } else {
@@ -133,7 +151,6 @@ impl<'a> Display for DeviceTreeNode<'a> {
         write!(f, "}};")
     }
 }
-
 
 impl<'a> HasNamedChildNode for DeviceTreeNode<'a> {
     fn has_children(&self) -> bool {

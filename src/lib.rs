@@ -5,7 +5,9 @@
 //!
 //! Parses a device tree blob to a human-friendly data structure.
 //!
-//! The no `std` but `alloc` library is required.
+//! The no [std] but [alloc] library is required.
+
+pub use device_tree::DeviceTree;
 
 extern crate alloc;
 
@@ -16,9 +18,9 @@ mod header;
 pub mod device_tree;
 /// `DeviceTreeError`
 pub mod error;
-/// `NodeProperty`
-pub mod prop;
 /// `DeviceTreeNode`
 pub mod node;
+/// `NodeProperty`
+pub mod prop;
 /// Traits for the crate
 pub mod traits;

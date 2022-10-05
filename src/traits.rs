@@ -1,7 +1,7 @@
 use crate::node::DeviceTreeNode;
 use crate::prop::NodeProperty;
 
-/// Indicates a struct should have `NodeProperty` and can be indexed by its name
+/// Indicates a struct should have [NodeProperty] and can be indexed by its name
 pub trait HasNamedProperty {
     /// Having properties or not
     fn has_props(&self) -> bool;
@@ -10,7 +10,7 @@ pub trait HasNamedProperty {
     fn find_prop(&self, name: &str) -> Option<&NodeProperty>;
 }
 
-/// Indicates a struct should have `DeviceTreeNode` and can be indexed by its name
+/// Indicates a struct should have [DeviceTreeNode] and can be indexed by its name
 pub trait HasNamedChildNode {
     /// Having child nodes or not
     fn has_children(&self) -> bool;

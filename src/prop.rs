@@ -3,13 +3,16 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::{Display, Formatter};
 
-use crate::byte_utils::{align_block, align_size, BLOCK_SIZE, locate_block, read_aligned_be_number, read_aligned_be_u32, read_aligned_sized_strings, read_name};
+use crate::byte_utils::{
+    align_block, align_size, locate_block, read_aligned_be_number, read_aligned_be_u32,
+    read_aligned_sized_strings, read_name, BLOCK_SIZE,
+};
 use crate::device_tree::InheritedValues;
 use crate::error::DeviceTreeError::{NotEnoughLength, ParsingFailed};
 use crate::error::Result;
 use crate::header::DeviceTreeHeader;
 
-/// Presenting a variety of values that a `NodeProperty` can hold
+/// Presenting a variety of values that a [NodeProperty] can hold
 #[derive(Debug)]
 pub enum PropertyValue<'a> {
     /// Empty value
@@ -42,19 +45,43 @@ impl<'a> Display for PropertyValue<'a> {
         match self {
             PropertyValue::None => write!(f, ""),
             PropertyValue::Integer(it) => write!(f, "<{:#x}>", it),
-            PropertyValue::Integers(it) => write!(f, "<{}>", it.iter().map(|x| format!("{:#x}", x)).collect::<Vec<String>>().join(" ")),
+            PropertyValue::Integers(it) => write!(
+                f,
+                "<{}>",
+                it.iter()
+                    .map(|x| format!("{:#x}", x))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
             PropertyValue::String(it) => write!(f, "\"{}\"", it),
-            PropertyValue::Strings(it) => write!(f, "\"[{}]\"", it.join("\",\"")),
+            PropertyValue::Strings(it) => write!(f, "[\"{}\"]", it.join("\",\"")),
             PropertyValue::PHandle(it) => write!(f, "<{:#x}>", it),
             PropertyValue::Address(address, size) => write!(f, "<{:#x} {:#x}>", address, size),
-            PropertyValue::Addresses(it) => write!(f, "<{}>", it.iter().map(|(address, size)| format!("{:#x} {:#x}", address, size)).collect::<Vec<String>>().join(" ")),
-            PropertyValue::Ranges(it) => write!(f, "<{}>", it.iter().map(|(child, parent, length)| format!("{:#x} {:#x} {:#x}", child, parent, length)).collect::<Vec<String>>().join(" ")),
-            PropertyValue::Unknown => write!(f, "")
+            PropertyValue::Addresses(it) => write!(
+                f,
+                "<{}>",
+                it.iter()
+                    .map(|(address, size)| format!("{:#x} {:#x}", address, size))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            PropertyValue::Ranges(it) => write!(
+                f,
+                "<{}>",
+                it.iter()
+                    .map(|(child, parent, length)| format!(
+                        "{:#x} {:#x} {:#x}",
+                        child, parent, length
+                    ))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            PropertyValue::Unknown => write!(f, ""),
         }
     }
 }
 
-/// A property of `DeviceTreeNode`
+/// A property of [crate::node::DeviceTreeNode]
 pub struct NodeProperty<'a> {
     pub(crate) block_count: usize,
     name: &'a str,
@@ -63,24 +90,30 @@ pub struct NodeProperty<'a> {
 
 // it wont create value, node does
 impl<'a> NodeProperty<'a> {
-    pub(crate) fn from_bytes(data: &'a [u8], header: &DeviceTreeHeader, start: usize, inherited: &InheritedValues, owned: &InheritedValues) -> Result<NodeProperty<'a>> {
+    pub(crate) fn from_bytes(
+        data: &'a [u8],
+        header: &DeviceTreeHeader,
+        start: usize,
+        inherited: &InheritedValues,
+        owned: &InheritedValues,
+    ) -> Result<NodeProperty<'a>> {
         let prop_block_start = align_block(start);
         if let Some(prop_val_size) = read_aligned_be_u32(data, prop_block_start + 1) {
-            if let Some(name_offset) = read_aligned_be_u32(data, prop_block_start + 2)
-            {
+            if let Some(name_offset) = read_aligned_be_u32(data, prop_block_start + 2) {
                 if let Some(name) = read_name(data, (header.off_dt_strings + name_offset) as usize)
                 {
                     let value_index = prop_block_start + 3;
                     // standard properties
                     if prop_val_size > 0 {
-                        let raw_value = &data[locate_block(value_index)..(locate_block(value_index) + prop_val_size as usize)];
+                        let raw_value = &data[locate_block(value_index)
+                            ..(locate_block(value_index) + prop_val_size as usize)];
                         match NodeProperty::parse_value(raw_value, name, inherited, owned) {
                             Ok(value) => Ok(Self {
                                 block_count: 3 + align_size(prop_val_size as usize),
                                 name,
                                 value,
                             }),
-                            Err(err) => Err(err)
+                            Err(err) => Err(err),
                         }
                     } else {
                         Ok(Self {
@@ -100,7 +133,12 @@ impl<'a> NodeProperty<'a> {
         }
     }
 
-    pub(crate) fn parse_value(raw_value: &'a [u8], name: &str, inherited: &InheritedValues, owned: &InheritedValues) -> Result<PropertyValue<'a>> {
+    pub(crate) fn parse_value(
+        raw_value: &'a [u8],
+        name: &str,
+        inherited: &InheritedValues,
+        owned: &InheritedValues,
+    ) -> Result<PropertyValue<'a>> {
         match name {
             "compatible" | "model" | "status" => {
                 if let Some(strs) = read_aligned_sized_strings(raw_value, 0, raw_value.len()) {
@@ -123,11 +161,11 @@ impl<'a> NodeProperty<'a> {
             "reg" => {
                 let address_cells = match inherited.find("#address-cells") {
                     Some(v) => v as usize,
-                    _ => 2
+                    _ => 2,
                 };
                 let size_cells = match inherited.find("#size-cells") {
                     Some(v) => v as usize,
-                    _ => 2
+                    _ => 2,
                 };
 
                 let group_size = align_size(raw_value.len()) / (address_cells + size_cells);
@@ -135,34 +173,49 @@ impl<'a> NodeProperty<'a> {
                     let mut regs = Vec::<(u64, u64)>::new();
                     for i in 0..group_size {
                         let group_index = i * (address_cells + size_cells);
-                        let res = (read_aligned_be_number(raw_value, group_index, address_cells).unwrap(), read_aligned_be_number(raw_value, group_index + address_cells, size_cells).unwrap());
+                        let res = (
+                            read_aligned_be_number(raw_value, group_index, address_cells).unwrap(),
+                            read_aligned_be_number(
+                                raw_value,
+                                group_index + address_cells,
+                                size_cells,
+                            )
+                            .unwrap(),
+                        );
                         regs.push(res);
                     }
                     Ok(PropertyValue::Addresses(regs))
                 } else {
-                    Ok(PropertyValue::Address(read_aligned_be_number(raw_value, 0, address_cells).unwrap(), read_aligned_be_number(raw_value, address_cells, size_cells).unwrap()))
+                    Ok(PropertyValue::Address(
+                        read_aligned_be_number(raw_value, 0, address_cells).unwrap(),
+                        read_aligned_be_number(raw_value, address_cells, size_cells).unwrap(),
+                    ))
                 }
             }
             "ranges" | "dma-ranges" => {
                 // TODO: make ranges fucking work
                 let child_cells = match owned.find("#address-cells") {
                     Some(v) => v as usize,
-                    _ => 2
+                    _ => 2,
                 };
                 let parent_cells = match inherited.find("#address-cells") {
                     Some(v) => v as usize,
-                    _ => 2
+                    _ => 2,
                 };
                 let size_cells = match owned.find("#size-cells") {
                     Some(v) => v as usize,
-                    _ => 2
+                    _ => 2,
                 };
                 let single_size = child_cells + parent_cells + size_cells;
                 let group_size = align_size(raw_value.len()) / single_size;
                 let mut rags = Vec::<(u64, u64, u64)>::new();
                 for i in 0..group_size {
                     let group_index = i * single_size;
-                    let res = (read_aligned_be_number(raw_value, group_index, child_cells).unwrap(), read_aligned_be_number(raw_value, group_index, parent_cells).unwrap(), read_aligned_be_number(raw_value, group_index, size_cells).unwrap());
+                    let res = (
+                        read_aligned_be_number(raw_value, group_index, child_cells).unwrap(),
+                        read_aligned_be_number(raw_value, group_index, parent_cells).unwrap(),
+                        read_aligned_be_number(raw_value, group_index, size_cells).unwrap(),
+                    );
                     rags.push(res);
                 }
                 Ok(PropertyValue::Ranges(rags))
@@ -212,7 +265,9 @@ impl<'a> NodeProperty<'a> {
                         }
                         Ok(PropertyValue::Integers(res))
                     } else {
-                        Ok(PropertyValue::Integer(read_aligned_be_u32(raw_value, 0).unwrap() as u64))
+                        Ok(PropertyValue::Integer(
+                            read_aligned_be_u32(raw_value, 0).unwrap() as u64,
+                        ))
                     }
                 }
             }
@@ -234,7 +289,7 @@ impl<'a> Display for NodeProperty<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match &self.value {
             PropertyValue::Unknown | PropertyValue::None => write!(f, "{};", self.name),
-            other => write!(f, "{} = {};", self.name, other)
+            other => write!(f, "{} = {};", self.name, other),
         }
     }
 }
