@@ -21,3 +21,5 @@ fn main() {
   affected by `#<specifier>-cells`)
 - [ ] PHandle binding
 - [ ] Nexus node and specifier mapping
+- [ ] The situation when #address-cells value set to 3
+- [ ] #address-cells and #size-cells should not be inherited?

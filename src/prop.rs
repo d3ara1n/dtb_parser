@@ -237,7 +237,9 @@ impl<'a> NodeProperty<'a> {
             }
             _ => {
                 let a = raw_value.len() as usize % BLOCK_SIZE == 0; // str or int | must str
-                let b = raw_value[0] != b'\0' && raw_value[(raw_value.len() - 1) as usize] == b'\0'; // A then must str
+                let b = raw_value[0] != b'\0'
+                    && raw_value[(raw_value.len() - 1) as usize] == b'\0'
+                    && raw_value.is_ascii(); // A then must str
                 if !a || a && b {
                     // must be str
                     if let Some(strs) = read_aligned_sized_strings(raw_value, 0, raw_value.len()) {
