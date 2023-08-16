@@ -105,6 +105,22 @@ impl<'a> DeviceTree<'a> {
     pub fn root(&self) -> &DeviceTreeNode {
         &self.root
     }
+
+    /// Find the node by given node path
+    pub fn find_node(&self, path: &str) -> Option<&DeviceTreeNode> {
+        let mut slices = path.split('/');
+        if let Some("") = slices.next() {
+            let mut first = &self.root;
+            for i in slices {
+                if let Some(node) = first.find_child(i) {
+                    first = node;
+                }
+            }
+            Some(first)
+        } else {
+            None
+        }
+    }
 }
 
 /// Iterator for all the tree nodes

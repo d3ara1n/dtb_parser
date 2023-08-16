@@ -108,6 +108,25 @@ impl<'a> DeviceTreeNode<'a> {
         self.name
     }
 
+
+    /// Get the node type from its name(the part before '@')
+    pub fn type_name(&self) -> &'a str {
+        if let Some(index) = self.name.find('@') {
+            &self.name[..index]
+        }else{
+            self.name
+        }
+    }
+
+    /// Get the identifying name from its name(the part after '@')
+    pub fn index_name(&self) -> &'a str{
+        if let Some(index) = self.name.find('@') {
+            &self.name[(index + 1)..]
+        }else{
+            self.name
+        }
+    }
+
     /// Get a reference of its owned properties
     pub fn props(&self) -> &[NodeProperty<'a>] {
         &self.props
@@ -116,6 +135,11 @@ impl<'a> DeviceTreeNode<'a> {
     /// Get a reference of its owned children
     pub fn nodes(&self) -> &[DeviceTreeNode<'a>] {
         &self.nodes
+    }
+
+    /// Find property and get its value in one call
+    pub fn value(&self, prop_name: &str) -> Option<&PropertyValue> {
+        self.find_prop(prop_name).map(|f| f.value())
     }
 }
 
