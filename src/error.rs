@@ -14,4 +14,6 @@ pub enum DeviceTreeError {
     ParsingFailed,
     /// Memory cannot be accessed
     MemoryAccessFailed,
+    /// Missing definition of the address or size length
+    MissingCellParameter,
 }

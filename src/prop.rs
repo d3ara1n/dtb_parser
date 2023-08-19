@@ -5,10 +5,10 @@ use core::fmt::{Display, Formatter};
 
 use crate::byte_utils::{
     align_block, align_size, locate_block, read_aligned_be_number, read_aligned_be_u32,
-    read_aligned_sized_strings, read_name, BLOCK_SIZE,
+    read_aligned_sized_strings, read_name, BLOCK_SIZE, read_aligned_be_big_number,
 };
 use crate::device_tree::InheritedValues;
-use crate::error::DeviceTreeError::{NotEnoughLength, ParsingFailed};
+use crate::error::DeviceTreeError::{self, NotEnoughLength, ParsingFailed};
 use crate::error::Result;
 use crate::header::DeviceTreeHeader;
 
@@ -35,7 +35,7 @@ pub enum PropertyValue<'a> {
     Addresses(Vec<(u64, u64)>),
     // child-bus-address, parent-bus-address, length
     /// A arbitrary number of addresses
-    Ranges(Vec<(u64, u64, u64)>),
+    Ranges(Vec<(u128, u64, u64)>),
     /// Out of these varieties and cannot be parsed
     Unknown,
 }
@@ -90,6 +90,64 @@ pub struct NodeProperty<'a> {
 
 // it wont create value, node does
 impl<'a> NodeProperty<'a> {
+    pub(crate) fn read_meta(
+        data: &'a [u8],
+        header: &DeviceTreeHeader,
+        block_start: usize,
+    ) -> Option<(&'a str, u32, usize)> {
+        if let Some(prop_val_size) = read_aligned_be_u32(data, block_start + 1) {
+            if let Some(name_offset) = read_aligned_be_u32(data, block_start + 2) {
+                if let Some(name) = read_name(data, (header.off_dt_strings + name_offset) as usize)
+                {
+                    Some((
+                        name,
+                        prop_val_size,
+                        if prop_val_size > 0 {
+                            3 + align_size(prop_val_size as usize)
+                        } else {
+                            3
+                        },
+                    ))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    pub(crate) fn from_meta(
+        data: &'a [u8],
+        meta: (&'a str, u32, usize),
+        block_start: usize,
+        inherited: &InheritedValues,
+        owned: &InheritedValues,
+    ) -> Result<NodeProperty<'a>> {
+        let value_index = block_start + 3;
+        // standard properties
+        if meta.1 > 0 {
+            let raw_value =
+                &data[locate_block(value_index)..(locate_block(value_index) + meta.1 as usize)];
+            match NodeProperty::parse_value(raw_value, meta.0, inherited, owned) {
+                Ok(value) => {
+                    return Ok(Self {
+                        block_count: meta.2,
+                        name: meta.0,
+                        value,
+                    })
+                }
+                Err(err) => Err(err),
+            }
+        } else {
+            Ok(Self {
+                block_count: 3,
+                name: meta.0,
+                value: PropertyValue::None,
+            })
+        }
+    }
     pub(crate) fn from_bytes(
         data: &'a [u8],
         header: &DeviceTreeHeader,
@@ -97,37 +155,9 @@ impl<'a> NodeProperty<'a> {
         inherited: &InheritedValues,
         owned: &InheritedValues,
     ) -> Result<NodeProperty<'a>> {
-        let prop_block_start = align_block(start);
-        if let Some(prop_val_size) = read_aligned_be_u32(data, prop_block_start + 1) {
-            if let Some(name_offset) = read_aligned_be_u32(data, prop_block_start + 2) {
-                if let Some(name) = read_name(data, (header.off_dt_strings + name_offset) as usize)
-                {
-                    let value_index = prop_block_start + 3;
-                    // standard properties
-                    if prop_val_size > 0 {
-                        let raw_value = &data[locate_block(value_index)
-                            ..(locate_block(value_index) + prop_val_size as usize)];
-                        match NodeProperty::parse_value(raw_value, name, inherited, owned) {
-                            Ok(value) => Ok(Self {
-                                block_count: 3 + align_size(prop_val_size as usize),
-                                name,
-                                value,
-                            }),
-                            Err(err) => Err(err),
-                        }
-                    } else {
-                        Ok(Self {
-                            block_count: 3,
-                            name,
-                            value: PropertyValue::None,
-                        })
-                    }
-                } else {
-                    Err(NotEnoughLength)
-                }
-            } else {
-                Err(NotEnoughLength)
-            }
+        let block_start = align_block(start);
+        if let Some(meta) = Self::read_meta(data, header, block_start) {
+            Self::from_meta(data, meta, block_start, inherited, owned)
         } else {
             Err(NotEnoughLength)
         }
@@ -161,11 +191,11 @@ impl<'a> NodeProperty<'a> {
             "reg" => {
                 let address_cells = match inherited.find("#address-cells") {
                     Some(v) => v as usize,
-                    _ => 2,
+                    _ => return Err(DeviceTreeError::MissingCellParameter),
                 };
                 let size_cells = match inherited.find("#size-cells") {
                     Some(v) => v as usize,
-                    _ => 2,
+                    _ => return Err(DeviceTreeError::MissingCellParameter),
                 };
 
                 let group_size = align_size(raw_value.len()) / (address_cells + size_cells);
@@ -193,28 +223,27 @@ impl<'a> NodeProperty<'a> {
                 }
             }
             "ranges" | "dma-ranges" => {
-                // TODO: make ranges fucking work
                 let child_cells = match owned.find("#address-cells") {
                     Some(v) => v as usize,
-                    _ => 2,
+                    _ => return Err(DeviceTreeError::MissingCellParameter),
                 };
                 let parent_cells = match inherited.find("#address-cells") {
                     Some(v) => v as usize,
-                    _ => 2,
+                    _ => return Err(DeviceTreeError::MissingCellParameter),
                 };
                 let size_cells = match owned.find("#size-cells") {
                     Some(v) => v as usize,
-                    _ => 2,
+                    _ => return Err(DeviceTreeError::MissingCellParameter),
                 };
                 let single_size = child_cells + parent_cells + size_cells;
                 let group_size = align_size(raw_value.len()) / single_size;
-                let mut rags = Vec::<(u64, u64, u64)>::new();
+                let mut rags = Vec::<(u128, u64, u64)>::new();
                 for i in 0..group_size {
                     let group_index = i * single_size;
                     let res = (
-                        read_aligned_be_number(raw_value, group_index, child_cells).unwrap(),
-                        read_aligned_be_number(raw_value, group_index, parent_cells).unwrap(),
-                        read_aligned_be_number(raw_value, group_index, size_cells).unwrap(),
+                        read_aligned_be_big_number(raw_value, group_index, child_cells).unwrap(),
+                        read_aligned_be_number(raw_value, group_index + child_cells, parent_cells).unwrap(),
+                        read_aligned_be_number(raw_value, group_index + child_cells + parent_cells, size_cells).unwrap(),
                     );
                     rags.push(res);
                 }

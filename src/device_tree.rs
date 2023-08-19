@@ -32,7 +32,6 @@ impl<'a> DeviceTree<'a> {
             &header,
             header.off_dt_struct as usize,
             InheritedValues::new(),
-            InheritedValues::new(),
         )?;
 
         Ok(Self { header, root })
@@ -179,17 +178,7 @@ impl<'a> InheritedValues<'a> {
         None
     }
 
-    pub fn update(&mut self, name: &'a str, value: u64) {
-        let mut dirty = false;
-        for i in 0..self.0.len() {
-            if self.0[i].0 == name {
-                self.0[i].1 = value;
-                dirty = true;
-                break;
-            }
-        }
-        if !dirty {
-            self.0.push((name, value));
-        }
+    pub fn insert(&mut self, name: &'a str, value: u64) {
+        self.0.push((name, value));
     }
 }

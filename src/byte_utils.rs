@@ -32,15 +32,37 @@ pub(crate) fn read_aligned_be_u32(data: &[u8], index: usize) -> Option<u32> {
     read_aligned_block(data, index).map(|block| u32::from_be_bytes(block))
 }
 
+pub(crate) fn read_aligned_be_big_number(
+    data: &[u8],
+    index: usize,
+    block_size: usize,
+) -> Option<u128> {
+    match block_size {
+        0 | 1 | 2 => read_aligned_be_number(data, index, block_size).map(|f| f as u128),
+        3 | 4 => {
+            let mut num = 0u128;
+            for i in 0..block_size {
+                let bytes = read_aligned_block(data, index + i)?;
+                let single = u32::from_be_bytes(bytes) as u128;
+                num = (num << 32) + single;
+            }
+            Some(num)
+        }
+        _ => None,
+    }
+}
+
 pub(crate) fn read_aligned_be_number(data: &[u8], index: usize, block_size: usize) -> Option<u64> {
     match block_size {
         0 => Some(0),
         1 => read_aligned_be_u32(data, index).map(|res| res as u64),
         2 => {
-            let bytes = &data[locate_block(index)..locate_block(index + block_size)];
-            let num = u64::from_be_bytes([
-                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-            ]);
+            let mut num = 0u64;
+            for i in 0..block_size{
+                let bytes = read_aligned_block(data, index + i)?;
+                let single = u32::from_be_bytes(bytes) as u64;
+                num = (num << 32) + single;
+            }
             Some(num)
         }
         _ => None,

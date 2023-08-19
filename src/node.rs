@@ -25,7 +25,6 @@ impl<'a> DeviceTreeNode<'a> {
         header: &DeviceTreeHeader,
         start: usize,
         inherited: InheritedValues<'a>,
-        mut owned: InheritedValues<'a>,
     ) -> Result<Self> {
         let block_start = align_size(start);
         if let Some(begin_node) = read_aligned_be_u32(data, block_start) {
@@ -33,6 +32,7 @@ impl<'a> DeviceTreeNode<'a> {
                 if let Some(name) = read_aligned_name(data, block_start + 1) {
                     let mut props = Vec::<NodeProperty>::new();
                     let mut nodes = Vec::<DeviceTreeNode>::new();
+                    let mut owned = InheritedValues::new();
                     let name_blocks = if align_size(name.len() + 1) == 0 {
                         // including zero-length name which occupied one block
                         1
@@ -42,6 +42,47 @@ impl<'a> DeviceTreeNode<'a> {
                     };
 
                     let mut current_block = block_start + name_blocks + 1;
+
+                    // prepare owned
+
+                    while let Some(token) = read_aligned_be_u32(data, current_block) {
+                        match token {
+                            0x3 => {
+                                if let Some((prop_name, size, count)) =
+                                    NodeProperty::read_meta(data, header, current_block)
+                                {
+                                    if prop_name.starts_with('#') {
+                                        if let Ok(prop) = NodeProperty::from_meta(
+                                            data,
+                                            (prop_name, size, count),
+                                            current_block,
+                                            &inherited,
+                                            &owned,
+                                        ) {
+                                            if let PropertyValue::Integer(v) = prop.value() {
+                                                current_block += prop.block_count;
+                                                owned.insert(prop_name, *v);
+                                            } else {
+                                                return Err(DeviceTreeError::ParsingFailed);
+                                            }
+                                        } else {
+                                            return Err(DeviceTreeError::ParsingFailed);
+                                        }
+                                    } else {
+                                        current_block += count;
+                                        continue;
+                                    }
+                                } else {
+                                    return Err(DeviceTreeError::ParsingFailed);
+                                }
+                            }
+                            _ => break,
+                        };
+                    }
+
+                    current_block = block_start + name_blocks + 1;
+
+                    // parse the remaining props and nodes
 
                     while let Some(token) = read_aligned_be_u32(data, current_block) {
                         match token {
@@ -54,12 +95,6 @@ impl<'a> DeviceTreeNode<'a> {
                                     &owned,
                                 ) {
                                     current_block += prop.block_count;
-                                    if nodes.is_empty() {
-                                        // it's inheritable value
-                                        if let PropertyValue::Integer(v) = prop.value() {
-                                            owned.update(prop.name(), *v);
-                                        }
-                                    }
                                     props.push(prop);
                                 } else {
                                     return Err(DeviceTreeError::ParsingFailed);
@@ -70,7 +105,6 @@ impl<'a> DeviceTreeNode<'a> {
                                     data,
                                     header,
                                     locate_block(current_block),
-                                    owned.clone(),
                                     owned.clone(),
                                 ) {
                                     current_block += node.block_count;
@@ -108,21 +142,20 @@ impl<'a> DeviceTreeNode<'a> {
         self.name
     }
 
-
     /// Get the node type from its name(the part before '@')
     pub fn type_name(&self) -> &'a str {
         if let Some(index) = self.name.find('@') {
             &self.name[..index]
-        }else{
+        } else {
             self.name
         }
     }
 
     /// Get the identifying name from its name(the part after '@')
-    pub fn index_name(&self) -> &'a str{
+    pub fn index_name(&self) -> &'a str {
         if let Some(index) = self.name.find('@') {
             &self.name[(index + 1)..]
-        }else{
+        } else {
             self.name
         }
     }
