@@ -1,11 +1,11 @@
 #[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, vec::Vec, format};
 #[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
 use std::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::{string::String, vec::Vec, format};
 
 use crate::byte_utils::{
     align_block, align_size, locate_block, read_aligned_be_big_number, read_aligned_be_number,

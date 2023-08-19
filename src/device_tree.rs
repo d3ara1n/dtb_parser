@@ -1,7 +1,7 @@
 #[cfg(not(feature = "std"))]
 use alloc::collections::VecDeque;
 #[cfg(not(feature = "std"))]
-use alloc::{self, vec::Vec};
+use alloc::{vec, vec::Vec};
 #[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 #[cfg(feature = "std")]
 use std::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
-use std::{self, vec::Vec};
+use std::{vec, vec::Vec};
 
 use crate::error::{DeviceTreeError, Result};
 use crate::header::DeviceTreeHeader;
