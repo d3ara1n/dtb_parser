@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 
 //! # dtb_parser
@@ -7,9 +7,10 @@
 //!
 //! The no [std] but [alloc] library is required.
 
-pub use device_tree::DeviceTree;
-
+#[cfg(not(feature = "std"))]
 extern crate alloc;
+
+pub use device_tree::DeviceTree;
 
 mod byte_utils;
 mod header;

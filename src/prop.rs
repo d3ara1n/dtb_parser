@@ -1,11 +1,15 @@
-use alloc::format;
-use alloc::string::String;
-use alloc::vec::Vec;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+#[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter};
+#[cfg(feature = "std")]
+use std::fmt::{Display, Formatter};
+#[cfg(feature = "std")]
+use std::{string::String, vec::Vec};
 
 use crate::byte_utils::{
-    align_block, align_size, locate_block, read_aligned_be_number, read_aligned_be_u32,
-    read_aligned_sized_strings, read_name, BLOCK_SIZE, read_aligned_be_big_number,
+    align_block, align_size, locate_block, read_aligned_be_big_number, read_aligned_be_number,
+    read_aligned_be_u32, read_aligned_sized_strings, read_name, BLOCK_SIZE,
 };
 use crate::device_tree::InheritedValues;
 use crate::error::DeviceTreeError::{self, NotEnoughLength, ParsingFailed};
@@ -242,8 +246,14 @@ impl<'a> NodeProperty<'a> {
                     let group_index = i * single_size;
                     let res = (
                         read_aligned_be_big_number(raw_value, group_index, child_cells).unwrap(),
-                        read_aligned_be_number(raw_value, group_index + child_cells, parent_cells).unwrap(),
-                        read_aligned_be_number(raw_value, group_index + child_cells + parent_cells, size_cells).unwrap(),
+                        read_aligned_be_number(raw_value, group_index + child_cells, parent_cells)
+                            .unwrap(),
+                        read_aligned_be_number(
+                            raw_value,
+                            group_index + child_cells + parent_cells,
+                            size_cells,
+                        )
+                        .unwrap(),
                     );
                     rags.push(res);
                 }

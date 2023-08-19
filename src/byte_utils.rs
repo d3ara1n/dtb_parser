@@ -1,4 +1,7 @@
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
 
 pub(crate) const BLOCK_SIZE: usize = 4;
 
@@ -58,7 +61,7 @@ pub(crate) fn read_aligned_be_number(data: &[u8], index: usize, block_size: usiz
         1 => read_aligned_be_u32(data, index).map(|res| res as u64),
         2 => {
             let mut num = 0u64;
-            for i in 0..block_size{
+            for i in 0..block_size {
                 let bytes = read_aligned_block(data, index + i)?;
                 let single = u32::from_be_bytes(bytes) as u64;
                 num = (num << 32) + single;

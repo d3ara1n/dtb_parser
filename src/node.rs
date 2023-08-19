@@ -1,6 +1,11 @@
-use alloc::string::String;
-use alloc::vec::Vec;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+#[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter, Write};
+#[cfg(feature = "std")]
+use std::fmt::{Display, Formatter, Write};
+#[cfg(feature = "std")]
+use std::{string::String, vec::Vec};
 
 use crate::byte_utils::{align_size, locate_block, read_aligned_be_u32, read_aligned_name};
 use crate::device_tree::InheritedValues;

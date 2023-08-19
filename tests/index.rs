@@ -23,3 +23,9 @@ fn prop_name() {
     assert!(!matches!(soc, None));
     assert!(matches!(soc.unwrap().find_child("soc_gpio1"), None));
 }
+
+#[test]
+fn find_node(){
+    let tree = DeviceTree::from_bytes(DTB).unwrap();
+    assert!(!matches!(tree.find_node("/cpus/cpu@0"), None));
+}
