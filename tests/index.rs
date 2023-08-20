@@ -29,3 +29,17 @@ fn find_node(){
     let tree = DeviceTree::from_bytes(DTB).unwrap();
     assert!(!matches!(tree.find_node("/cpus/cpu@0"), None));
 }
+
+#[test]
+fn find_path(){
+    let tree = DeviceTree::from_bytes(DTB).unwrap();
+    let path = tree.find_along_path("/cpus/cpu@0").unwrap();
+    assert!(matches!(path.last().unwrap().name(), "cpu@0"));
+}
+
+#[test]
+fn type_name(){
+    let tree = DeviceTree::from_bytes(DTB).unwrap();
+    let node = tree.find_node("/cpus/cpu@0").unwrap();
+    assert_eq!(node.type_name(), "cpu");
+}

@@ -1,11 +1,11 @@
 #[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
 #[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter, Write};
 #[cfg(feature = "std")]
 use std::fmt::{Display, Formatter, Write};
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::{borrow::ToOwned, string::String, vec::Vec};
 
 use crate::byte_utils::{align_size, locate_block, read_aligned_be_u32, read_aligned_name};
 use crate::device_tree::InheritedValues;
@@ -17,19 +17,19 @@ use crate::traits::{HasNamedChildNode, HasNamedProperty};
 
 /// Node of [crate::device_tree::DeviceTree]
 /// Contains owned children and properties
-pub struct DeviceTreeNode<'a> {
+pub struct DeviceTreeNode {
     pub(crate) block_count: usize,
-    name: &'a str,
-    props: Vec<NodeProperty<'a>>,
-    nodes: Vec<DeviceTreeNode<'a>>,
+    name: String,
+    props: Vec<NodeProperty>,
+    nodes: Vec<DeviceTreeNode>,
 }
 
-impl<'a> DeviceTreeNode<'a> {
+impl DeviceTreeNode {
     pub(crate) fn from_bytes(
-        data: &'a [u8],
+        data: &[u8],
         header: &DeviceTreeHeader,
         start: usize,
-        inherited: InheritedValues<'a>,
+        inherited: InheritedValues,
     ) -> Result<Self> {
         let block_start = align_size(start);
         if let Some(begin_node) = read_aligned_be_u32(data, block_start) {
@@ -59,7 +59,7 @@ impl<'a> DeviceTreeNode<'a> {
                                     if prop_name.starts_with('#') {
                                         if let Ok(prop) = NodeProperty::from_meta(
                                             data,
-                                            (prop_name, size, count),
+                                            (prop_name.clone(), size, count),
                                             current_block,
                                             &inherited,
                                             &owned,
@@ -127,7 +127,7 @@ impl<'a> DeviceTreeNode<'a> {
                     }
                     Ok(Self {
                         block_count: current_block - block_start,
-                        name,
+                        name: name.to_owned(),
                         props,
                         nodes,
                     })
@@ -143,45 +143,40 @@ impl<'a> DeviceTreeNode<'a> {
     }
 
     /// Get the name of this node
-    pub fn name(&self) -> &'a str {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Get the node type from its name(the part before '@')
-    pub fn type_name(&self) -> &'a str {
+    pub fn type_name(&self) -> &str {
         if let Some(index) = self.name.find('@') {
             &self.name[..index]
         } else {
-            self.name
+            &self.name
         }
     }
 
     /// Get the identifying name from its name(the part after '@')
-    pub fn index_name(&self) -> &'a str {
+    pub fn index_name(&self) -> &str {
         if let Some(index) = self.name.find('@') {
             &self.name[(index + 1)..]
         } else {
-            self.name
+            &self.name
         }
     }
 
     /// Get a reference of its owned properties
-    pub fn props(&self) -> &[NodeProperty<'a>] {
+    pub fn props(&self) -> &[NodeProperty] {
         &self.props
     }
 
     /// Get a reference of its owned children
-    pub fn nodes(&self) -> &[DeviceTreeNode<'a>] {
+    pub fn nodes(&self) -> &[DeviceTreeNode] {
         &self.nodes
-    }
-
-    /// Find property and get its value in one call
-    pub fn value(&self, prop_name: &str) -> Option<&PropertyValue> {
-        self.find_prop(prop_name).map(|f| f.value())
     }
 }
 
-impl<'a> Display for DeviceTreeNode<'a> {
+impl Display for DeviceTreeNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         if let Err(err) = writeln!(f, "{} {{", self.name) {
             return Err(err);
@@ -214,7 +209,7 @@ impl<'a> Display for DeviceTreeNode<'a> {
     }
 }
 
-impl<'a> HasNamedChildNode for DeviceTreeNode<'a> {
+impl HasNamedChildNode for DeviceTreeNode {
     fn has_children(&self) -> bool {
         !self.nodes().is_empty()
     }
@@ -231,7 +226,7 @@ impl<'a> HasNamedChildNode for DeviceTreeNode<'a> {
     }
 }
 
-impl<'a> HasNamedProperty for DeviceTreeNode<'a> {
+impl HasNamedProperty for DeviceTreeNode {
     fn has_props(&self) -> bool {
         !self.props.is_empty()
     }

@@ -1,5 +1,5 @@
 use crate::node::DeviceTreeNode;
-use crate::prop::NodeProperty;
+use crate::prop::{NodeProperty, PropertyValue};
 
 /// Indicates a struct should have [NodeProperty] and can be indexed by its name
 pub trait HasNamedProperty {
@@ -17,4 +17,19 @@ pub trait HasNamedChildNode {
 
     /// Look for a child by its name
     fn find_child(&self, name: &str) -> Option<&DeviceTreeNode>;
+}
+
+/// Ability to access a node's property value
+pub trait FindPropertyValue {
+    /// Find property and get its value in one call
+    fn value(&self, prop_name: &str) -> Option<&PropertyValue>;
+}
+
+impl<T> FindPropertyValue for T
+where
+    T: HasNamedProperty,
+{
+    fn value(&self, prop_name: &str) -> Option<&PropertyValue> {
+        self.find_prop(prop_name).map(|f| f.value())
+    }
 }

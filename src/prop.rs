@@ -1,11 +1,11 @@
 #[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec, format};
+use alloc::{borrow::ToOwned, format, string::String, vec::Vec};
 #[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
 use std::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec, format};
+use std::{borrow::ToOwned, format, string::String, vec::Vec};
 
 use crate::byte_utils::{
     align_block, align_size, locate_block, read_aligned_be_big_number, read_aligned_be_number,
@@ -18,7 +18,7 @@ use crate::header::DeviceTreeHeader;
 
 /// Presenting a variety of values that a [NodeProperty] can hold
 #[derive(Debug)]
-pub enum PropertyValue<'a> {
+pub enum PropertyValue {
     /// Empty value
     None,
     /// Single integer
@@ -29,9 +29,9 @@ pub enum PropertyValue<'a> {
     /// A pointer referenced by `<specifier>-parent`
     PHandle(u32),
     /// Single string
-    String(&'a str),
+    String(String),
     /// A list of strings
-    Strings(Vec<&'a str>),
+    Strings(Vec<String>),
     // address, size, size with 0 no size
     /// An address with it's length(size)
     Address(u64, u64),
@@ -44,7 +44,7 @@ pub enum PropertyValue<'a> {
     Unknown,
 }
 
-impl<'a> Display for PropertyValue<'a> {
+impl Display for PropertyValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             PropertyValue::None => write!(f, ""),
@@ -86,25 +86,25 @@ impl<'a> Display for PropertyValue<'a> {
 }
 
 /// A property of [crate::node::DeviceTreeNode]
-pub struct NodeProperty<'a> {
+pub struct NodeProperty {
     pub(crate) block_count: usize,
-    name: &'a str,
-    value: PropertyValue<'a>,
+    name: String,
+    value: PropertyValue,
 }
 
 // it wont create value, node does
-impl<'a> NodeProperty<'a> {
+impl NodeProperty {
     pub(crate) fn read_meta(
-        data: &'a [u8],
+        data: &[u8],
         header: &DeviceTreeHeader,
         block_start: usize,
-    ) -> Option<(&'a str, u32, usize)> {
+    ) -> Option<(String, u32, usize)> {
         if let Some(prop_val_size) = read_aligned_be_u32(data, block_start + 1) {
             if let Some(name_offset) = read_aligned_be_u32(data, block_start + 2) {
                 if let Some(name) = read_name(data, (header.off_dt_strings + name_offset) as usize)
                 {
                     Some((
-                        name,
+                        name.to_owned(),
                         prop_val_size,
                         if prop_val_size > 0 {
                             3 + align_size(prop_val_size as usize)
@@ -123,18 +123,18 @@ impl<'a> NodeProperty<'a> {
         }
     }
     pub(crate) fn from_meta(
-        data: &'a [u8],
-        meta: (&'a str, u32, usize),
+        data: &[u8],
+        meta: (String, u32, usize),
         block_start: usize,
         inherited: &InheritedValues,
         owned: &InheritedValues,
-    ) -> Result<NodeProperty<'a>> {
+    ) -> Result<NodeProperty> {
         let value_index = block_start + 3;
         // standard properties
         if meta.1 > 0 {
             let raw_value =
                 &data[locate_block(value_index)..(locate_block(value_index) + meta.1 as usize)];
-            match NodeProperty::parse_value(raw_value, meta.0, inherited, owned) {
+            match NodeProperty::parse_value(raw_value, &meta.0, inherited, owned) {
                 Ok(value) => {
                     return Ok(Self {
                         block_count: meta.2,
@@ -153,12 +153,12 @@ impl<'a> NodeProperty<'a> {
         }
     }
     pub(crate) fn from_bytes(
-        data: &'a [u8],
+        data: &[u8],
         header: &DeviceTreeHeader,
         start: usize,
         inherited: &InheritedValues,
         owned: &InheritedValues,
-    ) -> Result<NodeProperty<'a>> {
+    ) -> Result<NodeProperty> {
         let block_start = align_block(start);
         if let Some(meta) = Self::read_meta(data, header, block_start) {
             Self::from_meta(data, meta, block_start, inherited, owned)
@@ -168,18 +168,20 @@ impl<'a> NodeProperty<'a> {
     }
 
     pub(crate) fn parse_value(
-        raw_value: &'a [u8],
+        raw_value: &[u8],
         name: &str,
         inherited: &InheritedValues,
         owned: &InheritedValues,
-    ) -> Result<PropertyValue<'a>> {
+    ) -> Result<PropertyValue> {
         match name {
             "compatible" | "model" | "status" => {
                 if let Some(strs) = read_aligned_sized_strings(raw_value, 0, raw_value.len()) {
                     if strs.len() > 1 {
-                        Ok(PropertyValue::Strings(strs))
+                        Ok(PropertyValue::Strings(
+                            strs.into_iter().map(|s| s.to_owned()).collect(),
+                        ))
                     } else {
-                        Ok(PropertyValue::String(strs[0]))
+                        Ok(PropertyValue::String(strs[0].to_owned()))
                     }
                 } else {
                     Err(ParsingFailed)
@@ -283,9 +285,11 @@ impl<'a> NodeProperty<'a> {
                     // must be str
                     if let Some(strs) = read_aligned_sized_strings(raw_value, 0, raw_value.len()) {
                         if strs.len() > 1 {
-                            Ok(PropertyValue::Strings(strs))
+                            Ok(PropertyValue::Strings(
+                                strs.into_iter().map(|s| s.to_owned()).collect(),
+                            ))
                         } else {
-                            Ok(PropertyValue::String(strs[0]))
+                            Ok(PropertyValue::String(strs[0].to_owned()))
                         }
                     } else {
                         Err(ParsingFailed)
@@ -316,8 +320,8 @@ impl<'a> NodeProperty<'a> {
     }
 
     /// Get its name
-    pub fn name(&self) -> &'a str {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Get its value
@@ -326,7 +330,7 @@ impl<'a> NodeProperty<'a> {
     }
 }
 
-impl<'a> Display for NodeProperty<'a> {
+impl Display for NodeProperty {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match &self.value {
             PropertyValue::Unknown | PropertyValue::None => write!(f, "{};", self.name),

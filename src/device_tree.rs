@@ -1,15 +1,11 @@
 #[cfg(not(feature = "std"))]
-use alloc::collections::VecDeque;
-#[cfg(not(feature = "std"))]
-use alloc::{vec, vec::Vec};
+use alloc::{collections::VecDeque, string::String, vec, vec::Vec};
 #[cfg(not(feature = "std"))]
 use core::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
-use std::collections::VecDeque;
-#[cfg(feature = "std")]
 use std::fmt::{Display, Formatter};
 #[cfg(feature = "std")]
-use std::{vec, vec::Vec};
+use std::{collections::VecDeque, string::String, vec, vec::Vec};
 
 use crate::error::{DeviceTreeError, Result};
 use crate::header::DeviceTreeHeader;
@@ -19,15 +15,15 @@ use crate::traits::HasNamedChildNode;
 /// The tree structure
 /// Reads data from a slice of bytes and parses into [DeviceTree]
 /// Indexed by nodes and properties' names or by path for the whole tree
-pub struct DeviceTree<'a> {
+pub struct DeviceTree {
     header: DeviceTreeHeader,
-    root: DeviceTreeNode<'a>,
+    root: DeviceTreeNode,
 }
 
-impl<'a> DeviceTree<'a> {
+impl DeviceTree {
     /// Parses a slice of bytes and constructs [DeviceTree]
     /// The structure should live as long as the `data`
-    pub fn from_bytes(data: &'a [u8]) -> Result<Self> {
+    pub fn from_bytes(data: &[u8]) -> Result<Self> {
         let magic = &data[0..4];
         if magic != [0xd0, 0x0d, 0xfe, 0xed] {
             return Err(DeviceTreeError::InvalidMagicNumber);
@@ -45,6 +41,7 @@ impl<'a> DeviceTree<'a> {
         Ok(Self { header, root })
     }
 
+    #[cfg(not(feature = "std"))]
     /// Parses from address where a device tree blob is located at
     pub fn from_address(addr: usize) -> Result<Self> {
         let header_bytes = unsafe { core::slice::from_raw_parts(addr as *const u8, 40) };
@@ -130,15 +127,50 @@ impl<'a> DeviceTree<'a> {
             None
         }
     }
+
+    /// Find the node by given node path with all the nodes traveled
+    pub fn find_along_path(&self, path: &str) -> Option<Vec<&DeviceTreeNode>> {
+        let mut slices: Vec<&str> = path.split('/').collect();
+        let mut container = Vec::<&DeviceTreeNode>::new();
+        if slices.len() > 0 && self.root.name() == slices[0] {
+            container.push(&self.root);
+            if Self::find_along_path_internal(&self.root, &mut slices, 1, &mut container) {
+                Some(container)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    fn find_along_path_internal<'tree>(
+        node: &'tree DeviceTreeNode,
+        slices: &mut [&str],
+        index: usize,
+        container: &mut Vec<&'tree DeviceTreeNode>,
+    ) -> bool {
+        if index == slices.len() {
+            return true;
+        }
+        let name = slices[index];
+        for node in node.nodes() {
+            if node.name() == name {
+                container.push(node);
+                return Self::find_along_path_internal(node, slices, index + 1, container);
+            }
+        }
+        return false;
+    }
 }
 
 /// Iterator for all the tree nodes
 pub struct DeviceTreeNodeIter<'a> {
-    queue: VecDeque<&'a DeviceTreeNode<'a>>,
+    queue: VecDeque<&'a DeviceTreeNode>,
 }
 
 impl<'a> Iterator for DeviceTreeNodeIter<'a> {
-    type Item = &'a DeviceTreeNode<'a>;
+    type Item = &'a DeviceTreeNode;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = self.queue.pop_front();
@@ -154,14 +186,14 @@ impl<'a> Iterator for DeviceTreeNodeIter<'a> {
     }
 }
 
-impl<'a> Display for DeviceTree<'a> {
+impl Display for DeviceTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "{}", self.root)
     }
 }
 
-impl<'a> IntoIterator for &'a DeviceTree<'a> {
-    type Item = &'a DeviceTreeNode<'a>;
+impl<'a> IntoIterator for &'a DeviceTree {
+    type Item = &'a DeviceTreeNode;
     type IntoIter = DeviceTreeNodeIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -172,23 +204,23 @@ impl<'a> IntoIterator for &'a DeviceTree<'a> {
 }
 
 #[derive(Clone)]
-pub(crate) struct InheritedValues<'a>(Vec<(&'a str, u64)>);
+pub(crate) struct InheritedValues(Vec<(String, u64)>);
 
-impl<'a> InheritedValues<'a> {
-    pub const fn new() -> InheritedValues<'a> {
+impl InheritedValues {
+    pub const fn new() -> Self {
         InheritedValues(vec![])
     }
 
     pub fn find(&self, name: &str) -> Option<u64> {
         for i in &self.0 {
-            if i.0 == name {
+            if i.0.as_str() == name {
                 return Some(i.1);
             }
         }
         None
     }
 
-    pub fn insert(&mut self, name: &'a str, value: u64) {
+    pub fn insert(&mut self, name: String, value: u64) {
         self.0.push((name, value));
     }
 }
