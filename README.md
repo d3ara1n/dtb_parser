@@ -21,3 +21,4 @@ fn main() {
 - [ ] PHandle binding
 - [x] Nexus node and specifier mapping
 - [x] The situation when #address-cells value set to 3
+- [ ] Interrupt values

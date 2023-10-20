@@ -8,6 +8,9 @@ pub trait HasNamedProperty {
 
     /// Look for a property by its name
     fn find_prop(&self, name: &str) -> Option<&NodeProperty>;
+
+    /// Look for a property by its name and returning its value if present
+    fn of_value(&self, name: &str) -> Option<&PropertyValue>;
 }
 
 /// Indicates a struct should have [DeviceTreeNode] and can be indexed by its name

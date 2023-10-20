@@ -241,4 +241,12 @@ impl HasNamedProperty for DeviceTreeNode {
         }
         option
     }
+
+    fn of_value(&self, name: &str) -> Option<&PropertyValue> {
+        if let Some(prop) = self.find_prop(name) {
+            Some(prop.value())
+        } else {
+            None
+        }
+    }
 }

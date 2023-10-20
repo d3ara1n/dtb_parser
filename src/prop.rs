@@ -261,6 +261,13 @@ impl NodeProperty {
                 }
                 Ok(PropertyValue::Ranges(rags))
             }
+            // https://www.kernel.org/doc/Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+            // interrupts => cell=1 (signal:Integer32), cell=2 (signal:Integer32, trigger&level:Integer32)
+            // trigger & level:
+            // 1 => low to high & edge trigger; 2 => high to low & edge trigger
+            // 3 => active high & level-sensitive 4 => active low & level-sensitive
+            // interrupt-extends => (PHandleRef, Integers)s
+            // TODO: interrupt-parent is not inherited
             x if x.ends_with("-parent") => {
                 if let Some(int) = read_aligned_be_u32(raw_value, 0) {
                     Ok(PropertyValue::PHandle(int))
